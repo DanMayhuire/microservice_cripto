@@ -1,0 +1,32 @@
+x-s05-service: &s05-service
+  build:
+    context: ../..
+    dockerfile: experimentos/microservicios/Dockerfile
+  environment: &s05-aead
+    S05_ALGORITHM: ${S05_ALGORITHM:-aes-128-gcm}
+    S05_KEY_HEX: ${S05_KEY_HEX?Define S05_KEY_HEX según el README}
+
+services:
+  receptor:
+    <<: *s05-service
+    command: ["gunicorn", "--bind", "0.0.0.0:8081", "--workers", "4", "--threads", "8", "receptor:app"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8081/salud', timeout=2).close()"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+  emisor:
+    <<: *s05-service
+    environment:
+      <<: *s05-aead
+      S05_RECEIVER_URL: http://receptor:8081
+    ports:
+      - "127.0.0.1:${S05_HOST_PORT-8080}:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/salud', timeout=2).close()"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      receptor:
+        condition: service_healthy

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Laboratorio AEAD · Grupo 04</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='laboratorio.css') }}">
+  <script defer src="{{ url_for('static', filename='laboratorio.js') }}"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect x="3.5" y="7.5" width="9" height="17" rx="2" stroke="currentColor" stroke-width="1.7"/>
+        <rect x="19.5" y="7.5" width="9" height="17" rx="2" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M8 16h16m-3-3 3 3-3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Laboratorio AEAD</span>
+    </div>
+    <div class="top-context">
+      <span>Investigación III <span class="top-divider">/</span> Grupo 04</span>
+      <p class="connection" id="connection" data-state="idle" role="status">
+        <span class="connection-dot" aria-hidden="true"></span>
+        <span id="connection-label">Conectando al emisor</span>
+      </p>
+    </div>
+  </header>
+
+  <div class="frame">
+    <aside class="rail" aria-label="Entorno de prueba">
+      <h2>Entorno de prueba</h2>
+      <dl>
+        <div><dt>Proyecto</dt><dd>UPeU · Grupo 04</dd></div>
+        <div><dt>Servicios</dt><dd>Emisor y receptor</dd></div>
+        <div><dt>Transporte</dt><dd>HTTP entre servicios</dd></div>
+        <div><dt>Tipo de carga</dt><dd>Mensajes sintéticos</dd></div>
+      </dl>
+    </aside>
+
+    <main class="sheet">
+      <div class="heading">
+        <div>
+          <h1>Prueba de intercambio</h1>
+          <p>Envía un mensaje de prueba y comprueba qué recibió el otro servicio.</p>
+        </div>
+        <div class="mode">
+          <span>Modo activo</span>
+          <strong id="active-algorithm">Consultando…</strong>
+        </div>
+      </div>
+
+      <div class="route" id="route" aria-label="Ruta de la prueba: emisor, enlace HTTP y receptor">
+        <div class="route-node">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7.5h16v10H4zM4.5 8l7.5 5 7.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div><strong>Emisor</strong><span>Prepara el mensaje</span></div>
+        </div>
+        <div class="route-link"><span>HTTP</span><i aria-hidden="true"></i></div>
+        <div class="route-node">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 4.5h12v15H6zM9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div><strong>Receptor</strong><span>Recupera el contenido</span></div>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <section class="panel" aria-labelledby="message-heading">
+          <header class="panel-heading">
+            <h2 id="message-heading">Mensaje de prueba</h2>
+            <code>POST /enviar</code>
+          </header>
+          <form id="message-form">
+            <fieldset class="mode-field">
+              <legend>Tipo de entrada</legend>
+              <div class="segments">
+                <label><input type="radio" name="entry" value="size" checked><span>Por tamaño</span></label>
+                <label><input type="radio" name="entry" value="text"><span>Texto o JSON</span></label>
+              </div>
+            </fieldset>
+            <div id="size-fields" class="entry-fields">
+              <label for="payload-size">Tamaño del mensaje</label>
+              <div class="size-input">
+                <input id="payload-size" type="number" inputmode="numeric" min="0" max="65536" step="1" value="64" required>
+                <span aria-hidden="true">bytes</span>
+              </div>
+              <div class="presets" aria-label="Tamaños del protocolo">
+                <button type="button" data-size="64" aria-pressed="true">64 B</button>
+                <button type="button" data-size="256" aria-pressed="false">256 B</button>
+                <button type="button" data-size="1024" aria-pressed="false">1 KiB</button>
+                <button type="button" data-size="4096" aria-pressed="false">4 KiB</button>
+                <button type="button" data-size="16384" aria-pressed="false">16 KiB</button>
+                <button type="button" data-size="65536" aria-pressed="false">64 KiB</button>
+              </div>
+            </div>
+            <div id="text-fields" class="entry-fields" hidden>
+              <div class="field-heading">
+                <label for="payload-text">Contenido del mensaje</label>
+                <button type="button" class="text-button" id="load-example">Cargar ejemplo</button>
+              </div>
+              <textarea id="payload-text" rows="4" placeholder="Escribe un mensaje de prueba" aria-describedby="text-size" disabled required></textarea>
+              <p class="help" id="text-size">0 / 65 536 bytes en UTF-8</p>
+            </div>
+            <p class="form-note">Usa datos ficticios. El modo activo se configura en Docker Compose.</p>
+            <button type="submit" class="send" id="send-button" disabled>
+              <span id="send-label">Enviar mensaje</span>
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <noscript><p>Activa JavaScript para enviar el mensaje desde esta página.</p></noscript>
+          </form>
+        </section>
+
+        <section class="panel" id="result" aria-labelledby="result-heading" aria-busy="false">
+          <header class="panel-heading">
+            <h2 id="result-heading">Resultado del intercambio</h2>
+            <span class="result-badge" id="result-badge" data-state="idle">Sin ejecutar</span>
+          </header>
+          <p class="result-message" id="result-message" role="status">Envía un mensaje para verificar su recepción.</p>
+          <dl class="metrics">
+            <div><dt>Intercambio total</dt><dd id="metric-total">—</dd></div>
+            <div><dt>Cifrado en el emisor</dt><dd id="metric-encrypt">—</dd></div>
+            <div><dt>Descifrado en el receptor</dt><dd id="metric-decrypt">—</dd></div>
+            <div><dt>Tamaño recibido</dt><dd id="metric-size">—</dd></div>
+          </dl>
+          <p class="measurement-note">El emisor mide el tiempo total desde que prepara el envío hasta que verifica la respuesta.</p>
+          <details class="digest" id="digest" hidden>
+            <summary>Ver huellas SHA-256</summary>
+            <dl>
+              <div><dt>Emisor</dt><dd><code id="sender-digest"></code></dd></div>
+              <div><dt>Receptor</dt><dd><code id="receiver-digest"></code></dd></div>
+            </dl>
+          </details>
+        </section>
+      </div>
+
+      <section class="history" aria-labelledby="history-heading">
+        <header class="section-heading">
+          <div>
+            <h2 id="history-heading">Intercambios recientes</h2>
+            <p>Hasta ocho pruebas en esta pestaña.</p>
+          </div>
+          <span class="history-count" id="history-count">0 pruebas</span>
+        </header>
+        <p class="history-empty" id="history-empty">Tus envíos aparecerán aquí después de la primera prueba.</p>
+        <div class="history-scroll" id="history-scroll" hidden tabindex="0" role="region" aria-labelledby="history-heading">
+          <table>
+            <thead><tr><th scope="col">Hora</th><th scope="col">Modo</th><th scope="col" class="numeric">Mensaje</th><th scope="col" class="numeric">Tiempo total</th><th scope="col">Resultado</th></tr></thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <details class="pilot-guide">
+        <summary>Piloto reproducible en Docker</summary>
+        <p>Desde la raíz del repositorio, ejecuta la matriz y guarda el resultado en una carpeta nueva.</p>
+        <code>python3 experimentos/microservicios/piloto_contenedores.py experimentos/s05_piloto_contenedores</code>
+        <p>El piloto guarda las mediciones por solicitud, corrida y contenedor junto con el manifiesto. El historial de esta página corresponde a envíos manuales.</p>
+      </details>
+    </main>
+  </div>
+</body>
+</html>
